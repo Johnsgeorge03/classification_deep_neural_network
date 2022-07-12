@@ -6,7 +6,7 @@ Created on Tue Jun 28 10:59:32 2022
 @author: john
 """
 import numpy as np
-import matplotlib.pyplot as plt
+
 
 
 def sigmoid(z):
@@ -21,7 +21,8 @@ def deriv_sigmoid(z):
 def deriv_relu(z):
     return np.where(z >= 0, 1, 0)
 
-
+def deriv_tanh(z):
+    return 1 - np.tanh(z)**2 
 
 
 def initialize_parameters(layer_dims):
@@ -47,7 +48,8 @@ def initialize_parameters(layer_dims):
         #one-based indexing i.e., first hidden layer is W1
         parameters['W' + str(l)] = np.random.randn(layer_dims[l], layer_dims[l-1])*0.01
         parameters['b' + str(l)] = np.zeros((layer_dims[l], 1))
-        
+    
+    
     return parameters
 
 
@@ -85,7 +87,7 @@ def forward_propagation(X, parameters):
     """
     caches = []
     A = X
-    L = len(parameters) + 1
+    L = len(parameters) // 2 + 1
     for l in range(1, L - 1):
         W = parameters['W' + str(l)]
         b = parameters['b' + str(l)]
@@ -120,7 +122,7 @@ def cost_function(Al, Y_true):
 
 def backward_prop(caches, Y):
     grads   = {}
-    L       = len(caches) + 1
+    L       = len(caches)  + 1
     (AL, WL, ZL, bL) = caches[-1]
     m       = AL.shape[1]
     Y       = Y.reshape(AL.shape)
@@ -140,9 +142,9 @@ def backward_prop(caches, Y):
     grads['db' + str(L - 1)] = dbL
     
     for l in reversed(range(L-2)):
-        (Al, Wl, Zl, bl) = caches[l+1]
+        (Al, Wl, Zl, bl) = caches[l]
         dZl     = dA_prev * deriv_relu(Zl)
-        dWl     = (1/m)*dZl@(caches[l][0]).T
+        dWl     = (1/m)*dZl@(caches[l-1][0]).T
         dbl     = (1/m)*np.sum(dZl, axis = 1, keepdims = True)
         dA_prev = Wl.T@dZl
         
@@ -156,10 +158,10 @@ def backward_prop(caches, Y):
 
 
 
-def update_parameteres(params, grads, learning_rate):
+def update_parameters(params, grads, learning_rate):
     
     parameters = params.copy()
-    L = len(parameters) + 1
+    L = len(parameters) // 2 + 1
     
     for l in range(1, L):
         parameters['W' + str(l)] = params['W' + str(l)] - learning_rate*grads['dW' + str(l)]
@@ -171,20 +173,21 @@ def update_parameteres(params, grads, learning_rate):
 
 
 
-def L_layer_model(X, Y, layer_dims, learning_rate = 0.075, num_iterations = 1000, print_cost=False):
+def L_layer_model(X, Y, layer_dims, learning_rate = 0.075, num_iterations = 1000, print_cost = False):
     np.random.seed(1)
     costs = []
     
     parameters  = initialize_parameters(layer_dims)
     
     for i in range(num_iterations):
+        
         caches = forward_propagation(X, parameters)
         
         cost   = cost_function(caches[-1][0], Y)
         
         grads  = backward_prop(caches, Y)
         
-        parameters = update_parameteres(parameters, grads, learning_rate)
+        parameters = update_parameters(parameters, grads, learning_rate)
 
         if print_cost and i % 100 == 0 or i == num_iterations - 1:
             print("Cost after iteration {}: {}".format(i, np.squeeze(cost)))
@@ -195,8 +198,28 @@ def L_layer_model(X, Y, layer_dims, learning_rate = 0.075, num_iterations = 1000
     
     
     
+
+def curves(x1, x2, Shape = "heart"):
+    if Shape == "par_heart":
+        t  = np.linspace(0, 2*np.pi, 100)
+        x1 = 16*np.sin(t)**3
+        x2 = 13*np.cos(t) - 5*np.cos(2*t) - 2*np.cos(3*t) - np.cos(4*t)
+        return x1, x2
+    
+    if Shape == "heart":
+        return (x1**2 + x2**2 - 1)**3 - (x1**2)*x2**3
     
     
+def create_train_test_set(x1, x2, split):
+    no_data = len(x1)
+    m       = int(split*no_data)
+    Y       = (curves(x1, x2, Shape = "heart") <= 0 ).reshape(1, -1)
+    X       = np.vstack((x1, x2))
+    X_train = X[:, 0:m]
+    Y_train = Y[:, 0:m]
+    X_test  = X[:, m:]
+    Y_test  = Y[:, m:]
+    return X_train, Y_train, X_test, Y_test
     
     
     
